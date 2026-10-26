@@ -1,0 +1,14 @@
+{
+  "_읽어보기": [
+    "run.py -i 로 넘기면 에너지 효율과",
+    "체감 Data Rate 참고값에 캐시 히트율이 들어간다.",
+    "source 에 출처를 적는다."
+  ],
+  "cache_hit": {
+    "source": "콘텐츠 캐싱 태스크 24라운드 seed 0, 이벤트 없음, 2026-10-08 측정",
+    "note": "에너지 효율의 백홀 전력 항과 체감 Data Rate 계산에 들어간다.",
+    "value_pct": 62.25,
+    "baseline_pct": 51.93,
+    "baseline_name": "LRU 캐시 정책"
+  }
+}

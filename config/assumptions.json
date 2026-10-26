@@ -1,0 +1,129 @@
+{
+  "_읽어보기": [
+    "평가 산식에 넣는 가정값. 코드에는 산식만 있고 숫자는 전부 여기 있다.",
+    "값을 바꾸면 보고서가 바로 따라 바뀐다. 코드를 고칠 일은 없다.",
+    "basis 는 값의 근거다.",
+    "근거를 적을 수 없는 값은 넣지 않는다."
+  ],
+
+  "links": {
+    "se_dl": {
+      "base": {
+        "name": "5G NR 하향 기준 설정",
+        "basis": "100 MHz / SCS 30 kHz 에서 273 RB 은 3GPP TS 38.101-1 표 5.3.2-1 의 최대 RB 수다. 변조·부호율·레이어는 5G 하향 최대 MCS 조합이고, 기준 설정의 산출값이 기준 수준 20 b/s/Hz 근처에 떨어져야 비교에 의미가 생긴다.",
+        "n_rb": 273,
+        "scs_hz": 30000,
+        "slot_ms": 0.5,
+        "ctrl_sym": 2,
+        "ce_re": 24,
+        "bits_per_sym": 8,
+        "code_rate": 0.92,
+        "mimo_gain": 4
+      },
+      "steps": [
+        {
+          "label": "파일럿 오버헤드 1/2",
+          "module": "⑤ Channel Estimation 딥러닝 컴포넌트",
+          "basis": "t 시점 파일럿 관측만으로 t+1 심볼의 전 서브캐리어 채널을 직접 예측한다. 예측이 성립하면 DMRS 주기를 2배로 늘려도 복조가 되므로 DMRS 심볼 2개가 1개로 줄어든다 (24 RE -> 12 RE). 예측이 실제로 되는지는 학습 지표의 채널추정 NMSE 실측으로 보인다. 산식과 실측이 연결되는 유일한 지점이다.",
+          "set": { "ce_re": 12 }
+        },
+        {
+          "label": "MCS 상향 256QAM -> 1024QAM",
+          "module": "⑤ Model Validation & Verification 모듈",
+          "basis": "CSI 오차가 줄면 같은 BLER 에서 더 높은 MCS 를 쓸 수 있다. 1024QAM 은 3GPP Rel-17 하향 규격 범위 안이다. 부호율은 0.92 -> 0.93 만 올려 변조 상향분에 기대는 비중을 줄였다.",
+          "set": { "bits_per_sym": 10, "code_rate": 0.93 }
+        },
+        {
+          "label": "랭크·빔 적응 +10%",
+          "module": "⑥ Dynamic Resource Allocation 모듈",
+          "basis": "예측 CSI 를 쓰면 CSI 노후화로 생기는 랭크 오선택이 줄어든다. CSI aging 보상 문헌의 통상 이득 범위는 10~20% 이고 그중 하한을 택했다. 안테나 수 같은 하드웨어 조건은 비교군과 동일하게 두었다.",
+          "set": { "mimo_gain": 4.4 }
+        }
+      ]
+    },
+
+    "se_ul": {
+      "base": {
+        "name": "5G NR 상향 기준 설정",
+        "basis": "상향은 제어 오버헤드가 하향보다 작지만 SRS 가 더해져 파일럿 오버헤드가 크다. 두 효과가 상쇄되어 기준 산출값이 하향과 같은 수준에 떨어진다.",
+        "n_rb": 273,
+        "scs_hz": 30000,
+        "slot_ms": 0.5,
+        "ctrl_sym": 1,
+        "ce_re": 36,
+        "bits_per_sym": 8,
+        "code_rate": 0.92,
+        "mimo_gain": 4
+      },
+      "steps": [
+        {
+          "label": "SRS/DMRS 오버헤드 1/2",
+          "module": "⑤ Channel Estimation 딥러닝 컴포넌트",
+          "basis": "하향과 같은 예측 구조를 상향에 적용해 SRS 주기를 2배로 늘린다 (36 RE -> 18 RE). 상향은 파일럿 비중이 커서 같은 조치의 이득이 하향보다 크다.",
+          "set": { "ce_re": 18 }
+        },
+        {
+          "label": "부호율 0.92 -> 0.95",
+          "module": "⑤ Model Validation & Verification 모듈",
+          "basis": "상향은 1024QAM 이 규격에 없어 변조 차수는 그대로 두고 부호율만 올렸다. 하향보다 보수적으로 잡은 이유가 이것이다.",
+          "set": { "code_rate": 0.95 }
+        },
+        {
+          "label": "MU-MIMO 페어링 +30%",
+          "module": "⑥ Dynamic Resource Allocation 모듈",
+          "basis": "예측 CSI 로 채널이 서로 직교하는 사용자끼리 묶으면 상향 다중접속 이득이 생긴다. 문헌 범위 1.3~2.0배 중 하한을 택했다.",
+          "set": { "mimo_gain": 5.2 }
+        }
+      ]
+    }
+  },
+
+  "latency": {
+    "base": {
+      "name": "5G NR 슬롯 단위",
+      "basis": "SCS 15 kHz 기본 numerology 는 슬롯이 1 ms 라서 기준값 1 ms 와 그대로 맞는다. BLER 10% 는 목표 BLER 로 흔히 쓰는 값이다.",
+      "scs_hz": 15000, "slot_ms": 1.0, "tti_sym": 14, "bler": 0.10
+    },
+    "ours": {
+      "name": "mini-slot + 예측 CSI",
+      "basis": "SCS 120 kHz 에 2심볼 mini-slot (PDSCH/PUSCH mapping type B) 을 쓴다. BLER 은 CSI 오차가 줄어 10% -> 1% 로 본다. mini-slot 선택 자체는 Dynamic Resource Allocation 모듈의 스케줄링 결정이다.",
+      "scs_hz": 120000, "slot_ms": 0.125, "tti_sym": 2, "bler": 0.01
+    },
+    "caveat": "이 값은 무선 구간 전송 시간이다. 사용자가 체감하는 종단 추론 지연은 별개이며 추론 오프로딩 쪽에서 ms 단위로 따로 측정한다. 두 숫자를 섞어 쓰면 안 된다."
+  },
+
+  "rate": {
+    "base": {
+      "name": "Macro Cell 기준",
+      "basis": "Macro 20 MHz 를 동시 스케줄 사용자 4명이 나눠 쓴다. 이 조합의 산출값이 기준값 100 Mb/s 와 맞는다.",
+      "bw_hz": 20000000, "users": 4
+    },
+    "ours": {
+      "name": "SBS 기반",
+      "basis": "SBS 가 촘촘해져 한 사용자가 받는 대역이 100 MHz 로 늘고 셀당 동시 사용자가 3명으로 줄어든다. 밀집 배치의 직접 효과다.",
+      "bw_hz": 100000000, "users": 3
+    },
+    "backhaul_bps": 300000000,
+    "backhaul_basis": "SBS 백홀 용량. 중계 구간 공유분을 감안한 보수값. 캐시 기여를 체감 평균으로 보일 때만 쓰고 최대 Data Rate 보고값에는 들어가지 않는다."
+  },
+
+  "energy": {
+    "basis": "선형 전력 모델 P_in = P0 + dp x P_out. 계수는 Auer et al., How much energy is needed to run a wireless network?, IEEE Wireless Communications, 2011, 표 3 (EARTH 프로젝트 모델) 의 Macro / Pico 값이다.",
+    "avg_se_factor": 0.35,
+    "avg_se_basis": "에너지 효율은 피크가 아니라 평균 처리량으로 재야 한다. 피크 대비 평균 스펙트럼 효율 계수다. 아래 부하율과 동시에 적용해 보수적으로 잡았다.",
+    "n_sbs": 6,
+    "backhaul_w_per_gbps": 10.0,
+    "backhaul_basis": "집선 구간 전력 원단위. 캐시 히트분은 백홀을 타지 않으므로 여기서 빠진다. 캐싱 모듈이 에너지 효율에 기여하는 경로다.",
+    "macro": {
+      "p0_w": 130.0, "dp": 4.7, "p_out_w": 20.0, "bw_hz": 20000000,
+      "sleep_residual": 0.30,
+      "sleep_basis": "네트워크 수요 예측으로 송신 전력을 낮추되 커버리지와 제어 채널 때문에 완전히 끄지는 않는다. 잔존 비율 30%."
+    },
+    "sbs": {
+      "p0_w": 6.8, "dp": 4.0, "p_out_w": 0.13, "bw_hz": 100000000,
+      "load": 0.65,
+      "load_basis": "SBS 평균 부하율. 7개 항목 중 이 값에만 결과가 민감하다. 보고서가 목표를 만족하는 임계 부하율을 같이 계산해 찍는다."
+    },
+    "sweep_loads": [0.40, 0.50, 0.60, 0.65, 0.75, 0.90]
+  }
+}

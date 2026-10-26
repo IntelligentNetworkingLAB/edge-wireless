@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>무선 구간 성능시험 · 시뮬레이션 결과 평가</title>
+<style>
+:root{
+  --bg:#eef1f6;--panel:#fff;--surface:#f7f9fc;--line:#dde3ec;--line2:#c8d1de;
+  --ink:#16202e;--ink2:#55637a;--ink3:#8b98ab;--head:#0d2c54;--brand:#0d2c54;
+  --blue:#1f5fa8;--blue-lt:#eaf1fa;--green:#15754f;--green-lt:#e7f3ed;
+  --amber:#96690f;--amber-lt:#fbf2e0;--red:#ad3a30;--red-lt:#faedec;
+  --mono:Consolas,"D2Coding",Menlo,monospace;
+}
+[data-theme="dark"]{
+  --bg:#12161d;--panel:#1b212b;--surface:#202733;--line:#2b3442;--line2:#3a4556;
+  --ink:#e6ebf2;--ink2:#a9b5c6;--ink3:#7a8699;--head:#cfe0f5;--brand:#2a4f80;
+  --blue:#6ba3e8;--blue-lt:#1c2c42;--green:#5bbd8f;--green-lt:#163027;
+  --amber:#d9a63f;--amber-lt:#352b15;--red:#e57d71;--red-lt:#35201f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+button{font:inherit;cursor:pointer}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{margin:0;font-size:19px;color:var(--head);letter-spacing:-.3px}
+header p{margin:1px 0 0;font-size:12px;color:var(--ink3)}
+.badge{font-size:12px;padding:3px 10px;border:1px solid var(--amber);color:var(--amber);background:var(--amber-lt);white-space:nowrap}
+.ctl{margin-left:auto;display:flex;gap:8px}
+.btn{padding:7px 14px;border:1px solid var(--line2);background:var(--panel);color:var(--ink)}
+.btn:hover{background:var(--surface)}
+.btn:disabled{opacity:.4;cursor:default}
+main{padding:16px 22px 50px;display:grid;grid-template-columns:350px minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:1000px){main{grid-template-columns:minmax(0,1fr)}#knobs{position:static;max-height:none}}
+.card{background:var(--panel);border:1px solid var(--line)}
+.card>h2{margin:0;padding:9px 14px;font-size:14px;color:var(--head);background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.card>h2 small{font-weight:400;color:var(--ink3);font-size:12px}
+.card .body{padding:12px 14px}
+#knobs{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.grp{margin:0 0 4px;padding:6px 14px;background:var(--surface);color:var(--head);font-size:13px;font-weight:700;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.knob{padding:8px 14px;border-bottom:1px solid var(--line)}
+.knob .top{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.knob .top b{font-family:var(--mono);color:var(--head);white-space:nowrap}
+.knob.chg .top b{color:var(--amber)}
+.knob.chg{background:var(--amber-lt)}
+.knob input[type=range]{width:100%;margin:4px 0 0}
+.knob .row{display:flex;gap:8px;align-items:center}
+.knob input[type=number]{width:84px;font:inherit;padding:2px 6px;border:1px solid var(--line2);background:var(--panel);color:var(--ink)}
+.knob .hint{font-size:12px;color:var(--ink3);margin-top:2px}
+.knob .why{font-size:12px;color:var(--ink2);margin-top:4px;display:none;border-left:3px solid var(--line2);padding-left:8px}
+.knob.open .why{display:block}
+.knob .more{font-size:12px;color:var(--blue);background:none;border:none;padding:0;margin-left:auto}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}
+@media(max-width:1250px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.cards{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.it{border:1px solid var(--line);background:var(--panel);padding:10px 12px;cursor:pointer;border-top:4px solid var(--line2)}
+.it.on{outline:2px solid var(--blue);outline-offset:-2px}
+.it.ok{border-top-color:var(--green)}.it.no{border-top-color:var(--red)}
+.it .l{font-size:12px;color:var(--ink2);min-height:34px}
+.it .v{font-size:26px;font-family:var(--mono);color:var(--head);font-weight:700;line-height:1.1}
+.it .u{font-size:12px;color:var(--ink3);margin-left:4px;font-weight:400}
+.it .s{font-size:12px;margin-top:4px}
+.it .d{font-size:12px;color:var(--amber);min-height:16px;font-family:var(--mono)}
+.gauge{position:relative;height:8px;background:var(--line);margin:8px 0 3px}
+.gauge i{position:absolute;left:0;top:0;bottom:0;background:var(--blue)}
+.gauge b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.gauge em{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink3);opacity:.7}
+.ok{color:var(--green);font-weight:700}.no{color:var(--red);font-weight:700}
+table{border-collapse:collapse;width:100%}
+th,td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+th{background:var(--surface);color:var(--ink3);font-size:12px;white-space:nowrap}
+td.n,th.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+.tw{overflow-x:auto}
+.f{font-family:var(--mono);font-size:13px;background:var(--surface);border-left:3px solid var(--blue);padding:8px 12px;margin:6px 0;color:var(--ink2)}
+.f b{color:var(--head)}
+.why2{font-size:13px;color:var(--ink2);margin:4px 0}
+.mod{font-size:12px;color:var(--blue);font-family:var(--mono)}
+.note{border-left:3px solid var(--amber);background:var(--amber-lt);padding:9px 13px;font-size:14px;color:var(--ink2);margin:10px 0}
+.note.blue{border-color:var(--blue);background:var(--blue-lt)}
+.bar{display:inline-block;height:10px;background:var(--blue);vertical-align:middle}
+.bar.g{background:var(--green)}.bar.r{background:var(--red)}.bar.a{background:var(--amber)}.bar.p{background:#7a6bb0}
+h3{margin:16px 0 6px;font-size:15px;color:var(--head)}
+h3:first-child{margin-top:0}
+.cols2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media(max-width:1200px){.cols2{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;height:22px;border:1px solid var(--line2);margin:3px 0}
+.stack i{display:block;height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--ink2)}
+.legend span:before{content:"";display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+nav.tabs{display:flex;gap:2px;padding:10px 22px 0}
+nav.tabs button{padding:9px 20px;border:1px solid transparent;border-bottom:none;background:none;color:var(--ink2);font-size:15px}
+nav.tabs button.on{background:var(--panel);border-color:var(--line2);color:var(--head);font-weight:700}
+.pane{padding:16px 22px 50px}
+.simgrid{display:grid;grid-template-columns:minmax(380px,5fr) minmax(0,7fr);gap:16px;align-items:start}
+@media(max-width:1100px){.simgrid{grid-template-columns:minmax(0,1fr)}}
+.bar2{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+textarea.in{width:100%;height:130px;font:13px/1.45 var(--mono);padding:8px;border:1px solid var(--line2);background:var(--surface);color:var(--ink);resize:vertical}
+.sgrp{margin:0 0 12px;border:1px solid var(--line);overflow-x:auto}
+#siminput,#siminput .body{min-width:0}
+@media(max-width:600px){.sgrp select{max-width:118px}.sgrp input[type=number]{width:92px}}
+.sgrp>div.h{padding:6px 10px;background:var(--surface);font-size:13px;color:var(--head);font-weight:700;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sgrp>div.h small{font-weight:400;color:var(--ink3)}
+.sgrp table td{padding:3px 6px;border-bottom:1px solid var(--line)}
+.sgrp select,.sgrp input{font:inherit;font-size:13px;padding:3px 5px;border:1px solid var(--line2);background:var(--panel);color:var(--ink);max-width:100%}
+.sgrp input[type=number]{width:110px;text-align:right;font-family:var(--mono)}
+.sgrp .x{border:none;background:none;color:var(--red);font-size:16px;padding:0 6px}
+.sgrp .add{border:none;background:none;color:var(--blue);padding:4px 10px;font-size:13px}
+.sgrp .need{padding:4px 10px;font-size:12px;color:var(--ink3)}
+.line{font-family:var(--mono);font-size:13px;background:var(--surface);border-left:3px solid var(--blue);padding:6px 10px;margin:4px 0;color:var(--ink2);overflow-x:auto;white-space:pre-wrap}
+.line.b{border-left-color:var(--ink3)}
+.it.na{border-top-color:var(--line2);opacity:.75}
+.it.inc{border-top-color:var(--amber)}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:9px 18px;display:none;z-index:9}
+svg text{font-family:inherit}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>무선 구간 성능시험 · 시뮬레이션 결과 평가</h1>
+    <p>개발이 끝난 시스템의 시뮬레이션 결과를 넣으면 5개 항목을 산식으로 계산하고 판정한다</p></div>
+  <span class="badge" title="입력한 시뮬레이션 값에 산식을 적용한 값이다. 장비에서 측정한 값이 아니다">시뮬레이션 값 · 장비 측정값 아님</span>
+  <div class="ctl"><button class="btn" id="reset" style="display:none">기본값으로</button><button class="btn" id="theme">◐</button></div>
+</header>
+<nav class="tabs" id="tabs">
+  <button data-t="sim" class="on">시뮬레이션 결과 입력 → 평가</button>
+  <button data-t="assume">가정으로 계산 (참고)</button>
+</nav>
+<div id="p-sim" class="pane on">
+  <div class="note blue" id="simintro">개발이 끝난 시스템의 시뮬레이션이 낸 값을 아래 표에 넣거나 CSV 로 붙여넣으면, 산식을 적용해서 5개 항목을 계산하고 목표와 비교한다. 이 프로그램이 값을 만들어내지 않는다.</div>
+  <div class="simgrid">
+    <div class="card" id="siminput"><h2>시뮬레이션 결과 <small id="simcount"></small></h2>
+      <div class="body">
+        <div class="bar2"><button class="btn primary" id="sSample">예시 불러오기</button><button class="btn" id="sUp">CSV 올리기</button><input type="file" id="sFile" accept=".csv,.txt,.tsv" style="display:none">
+          <button class="btn" id="sPaste">CSV 붙여넣기</button><button class="btn" id="sDown">CSV 내려받기</button><button class="btn" id="sClear">비우기</button></div>
+        <div id="pastebox" style="display:none"><textarea class="in" id="pasteta" spellcheck="false" placeholder="item,case,param,value&#10;se_dl,proposed,payload_bits,1474593"></textarea><div class="bar2"><button class="btn primary" id="sApply">적용</button><button class="btn" id="sCancel">닫기</button></div></div>
+        <div id="simrows"></div>
+        <p class="hint2">구분: <b>기준</b>(baseline)은 기존 5G 설정, <b>제안</b>(proposed)은 제안 기법을 쓴 시뮬레이션이다. 같은 값을 여러 방법으로 줄 수 있고 직접 준 값이 있으면 그걸 쓴다. 예시는 이 저장소의 산식 모델로 만든 값이고 실제 시뮬레이터가 낸 값이 아니다.</p>
+      </div></div>
+    <div><div id="simsum" class="note"></div><div class="cards" id="simcards"></div><div class="card"><h2 id="simtitle">상세</h2><div class="body" id="simdetail"></div></div></div>
+  </div>
+</div>
+<main id="p-assume" style="display:none">
+  <aside class="card" id="knobs"><h2>가정 <small id="chgCount"></small></h2><div id="klist"></div></aside>
+  <section>
+    <div class="note blue" id="intro"></div>
+    <div class="cards" id="cards"></div>
+    <div class="card"><h2 id="dtitle">상세</h2><div class="body" id="detail"></div></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const f = (v, d = 2) => v == null ? '—' : Number(v).toFixed(d);
+const si = b => b >= 1e9 ? (b / 1e9).toFixed(3) + ' Gb/s' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' Mb/s' : (b / 1e3).toFixed(0) + ' kb/s';
+const ITEM_NAME = {se_dl: '하향 스펙트럼 효율', se_ul: '상향 스펙트럼 효율', ee: '네트워크 에너지 효율', rate: '사용자 최대 Data Rate', lat: '사용자 최소 Latency'};
+const GROUPS = [['se_dl', '하향 스펙트럼 효율'], ['se_ul', '상향 스펙트럼 효율'], ['lat', 'Latency'], ['rate', 'Data Rate'], ['ee', '네트워크 에너지 효율']];
+const ORDER = ['se_dl', 'se_ul', 'ee', 'rate', 'lat'];
+let knobs = [], vals = {}, base = null, cur = null, sel = 'se_dl', timer = null, seq = 0;
+
+try { const t = localStorage.getItem('wl-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$('#theme').onclick = () => { const d = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = d; try { localStorage.setItem('wl-theme', d); } catch (e) {} };
+function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', 3200); }
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json(); if (d.ok === false) throw new Error(d.error); return d;
+}
+
+async function init() {
+  knobs = await api('/api/knobs');
+  knobs.forEach(k => vals[k.id] = k.default);
+  base = await api('/api/result'); cur = base;
+  buildKnobs(); render();
+}
+
+function buildKnobs() {
+  $('#klist').innerHTML = GROUPS.map(([g, name]) => {
+    const ks = knobs.filter(k => k.item === g); if (!ks.length) return '';
+    return `<div class="grp">${name}</div>` + ks.map(k => `<div class="knob" id="k-${k.id}">
+      <div class="top"><span>${esc(k.label)}</span><b id="kv-${k.id}"></b></div>
+      <div class="row"><input type="range" id="kr-${k.id}" min="${k.min}" max="${k.max}" step="${k.step}" value="${k.default}">
+        <input type="number" id="kn-${k.id}" min="${k.min}" max="${k.max}" step="${k.step}" value="${k.default}"></div>
+      <div class="row"><span class="hint">${esc(k.hint)}${k.unit ? ' · ' + esc(k.unit) : ''}</span>${k.basis ? '<button class="more" data-k="' + k.id + '">근거</button>' : ''}</div>
+      <div class="why">${esc(k.basis)}</div></div>`).join('');
+  }).join('');
+  knobs.forEach(k => {
+    const r = $('#kr-' + k.id), n = $('#kn-' + k.id);
+    const set = v => { vals[k.id] = +v; r.value = v; n.value = v; show(k); schedule(); };
+    r.oninput = () => set(r.value);
+    n.onchange = () => { let v = Math.min(k.max, Math.max(k.min, +n.value || k.default)); set(v); };
+    show(k);
+  });
+  document.querySelectorAll('.more').forEach(b => b.onclick = () => $('#k-' + b.dataset.k).classList.toggle('open'));
+}
+function show(k) {
+  const v = vals[k.id], chg = Math.abs(v - k.default) > 1e-9;
+  const dec = k.step < 0.01 ? 3 : k.step < 1 ? 2 : 0;
+  $('#kv-' + k.id).textContent = (+v).toFixed(dec);
+  $('#k-' + k.id).classList.toggle('chg', chg);
+  const n = knobs.filter(x => Math.abs(vals[x.id] - x.default) > 1e-9).length;
+  $('#chgCount').textContent = n ? n + '개 바꿈' : '기본값';
+}
+$('#reset').onclick = () => { knobs.forEach(k => { vals[k.id] = k.default; $('#kr-' + k.id).value = k.default; $('#kn-' + k.id).value = k.default; show(k); }); schedule(0); };
+
+function schedule(ms = 120) {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    const send = {}; knobs.forEach(k => { if (Math.abs(vals[k.id] - k.default) > 1e-9) send[k.id] = vals[k.id]; });
+    const my = ++seq;
+    try { const r = await api('/api/evaluate', {values: send}); if (my === seq) { cur = r; render(); } }
+    catch (e) { toast(e.message); }
+  }, ms);
+}
+
+const item = (r, id) => r.items.find(i => i.id === id);
+
+function render() {
+  const c = cur, passed = c.passed, total = c.total;
+  $('#intro').innerHTML = `<b>${passed} / ${total} 항목이 목표를 충족한다.</b> 이 값들은 <b>산식에 왼쪽 가정을 넣어 계산한 값</b>이다. 장비에서 측정한 게 아니다. 가정을 바꾸면 어느 항목이 언제 무너지는지 직접 볼 수 있고, 각 가정에는 그 값을 그렇게 잡은 근거가 달려 있다.`;
+  $('#cards').innerHTML = ORDER.map(id => {
+    const it = item(c, id), b = item(base, id);
+    const dec = id === 'lat' ? 4 : id === 'rate' ? 1 : 2;
+    const mx = Math.max(it.target, it.ref, it.value, b.value) * 1.15;
+    const pos = v => Math.min(100, 100 * v / mx);
+    const delta = Math.abs(it.value - b.value) > 1e-9 ? `기본 ${f(b.value, dec)} → ${it.value > b.value ? '+' : ''}${f(it.value - b.value, dec)}` : '';
+    return `<div class="it ${it.ok ? 'ok' : 'no'} ${sel === id ? 'on' : ''}" data-i="${id}">
+      <div class="l">${esc(it.label)}</div>
+      <div><span class="v">${f(it.value, dec)}</span><span class="u">${esc(it.unit)}</span></div>
+      <div class="gauge"><i style="width:${pos(it.value)}%"></i><em style="left:${pos(it.ref)}%" title="기준 수준"></em><b style="left:${pos(it.target)}%" title="목표"></b></div>
+      <div class="s"><span class="${it.ok ? 'ok' : 'no'}">${it.ok ? '충족' : '미달'}</span> · 목표 ${it.target} · 기준 ${it.ref}</div>
+      <div class="d">${delta}</div></div>`;
+  }).join('');
+  document.querySelectorAll('.it').forEach(e => e.onclick = () => { sel = e.dataset.i; render(); });
+  if (c.warnings && c.warnings.length) $('#intro').innerHTML += '<br>' + c.warnings.map(esc).join('<br>');
+  renderDetail();
+  knobs.forEach(show);
+}
+
+function renderDetail() {
+  const it = item(cur, sel), d = it.detail;
+  $('#dtitle').innerHTML = esc(it.label) + ` <small>목표 ${it.target} ${esc(it.unit)} · 기준 ${it.ref} (${esc(it.ref_src)})</small>`;
+  const form = (d.formula || []).map(p => `<div class="f"><b>${esc(p[0])}</b> = ${esc(p[1])}</div>`).join('') + (d.formula_note ? `<p class="why2">* ${esc(d.formula_note)}</p>` : '');
+  let h = '';
+  if (sel === 'se_dl' || sel === 'se_ul') h = detailSE(it, d, form);
+  else if (sel === 'lat') h = detailLat(it, d, form);
+  else if (sel === 'rate') h = detailRate(it, d, form);
+  else h = detailEE(it, d, form);
+  $('#detail').innerHTML = h;
+}
+
+function detailSE(it, d, form) {
+  const s = d.base_substitution, c = d.base_cfg;
+  const mx = Math.max(...d.steps.map(r => r.value), it.target) * 1.05;
+  const rows = d.steps.map(r => `<tr><td><b>${esc(r.label)}</b>${r.module ? '<br><span class="mod">' + esc(r.module) + '</span>' : ''}</td>
+    <td class="n">${f(r.value)}</td><td class="n">${r.factor === 1 ? '—' : '×' + f(r.factor, 3)}</td>
+    <td style="width:34%"><span class="bar ${r.value >= it.target ? 'g' : ''}" style="width:${100 * r.value / mx}%"></span></td></tr>
+    ${r.basis ? `<tr><td colspan="4" class="why2" style="padding-top:0">${esc(r.basis)}</td></tr>` : ''}`).join('');
+  return `<h3>산식</h3>${form}
+    <h3>기준 설정에 넣으면</h3>
+    <div class="f">RB당 RE = (14 − ${c.ctrl_sym}) × 12 − ${c.ce_re} = <b>${s.re_per_rb}</b><br>
+    Payload = ${s.re_per_rb} × ${c.bits_per_sym} × ${c.n_rb} × ${f(c.code_rate, 3)} × ${c.mimo_gain} = <b>${Math.round(s.payload_bits).toLocaleString()} bits</b><br>
+    Throughput = Payload / ${c.slot_ms} ms = <b>${si(s.throughput_bps)}</b><br>
+    SE = ${si(s.throughput_bps)} / (12 × ${c.n_rb} × ${c.scs_hz / 1e3} kHz = ${f(s.channel_bw_hz / 1e6)} MHz) = <b>${f(s.value)} b/s/Hz</b></div>
+    <p class="why2">${esc(c.basis)}</p>
+    <h3>어느 모듈이 얼마를 가져오나</h3>
+    <div class="tw"><table><thead><tr><th>단계 / 담당 모듈</th><th class="n">${esc(it.unit)}</th><th class="n">배수</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="note">기준값에서 목표치까지를 단계별로 나눠 각 모듈의 기여를 보인다. 첫 단계(파일럿 오버헤드 절감)는 모델이 t 시점 파일럿으로 t+1 심볼 채널을 예측할 수 있다는 가정에 기댄다. 그 예측이 실제로 되는지는 AI 프로그램이 다룬다.</div>`;
+}
+
+function detailLat(it, d, form) {
+  const parts = [['tti', 'TTI (산식값)', 'var(--blue)'], ['align', '스케줄링 정렬', 'var(--amber)'], ['harq', 'HARQ 재전송 기대', 'var(--red)']];
+  const mx = d.base.total;
+  const bar = o => `<div class="stack">${parts.map(([k, , c]) => `<i style="width:${100 * o[k] / mx}%;background:${c}" title="${k} ${f(o[k], 4)} ms"></i>`).join('')}</div>`;
+  return `<h3>산식</h3>${form}<p class="why2">${esc(d.note)}</p>
+    <h3>기준 5G NR 슬롯 단위 — 합계 ${f(d.base.total, 4)} ms</h3>${bar(d.base)}
+    <h3>제안 (mini-slot + 예측 CSI) — 합계 ${f(d.ours.total, 4)} ms</h3>${bar(d.ours)}
+    <div class="legend">${parts.map(([, n, c]) => `<span style="--c:${c}">${n}</span>`).join('')}</div>
+    <div class="tw" style="margin-top:10px"><table><thead><tr><th>항목 (ms)</th><th class="n">기준</th><th class="n">제안</th></tr></thead><tbody>
+    ${parts.map(([k, n]) => `<tr><td>${n}</td><td class="n">${f(d.base[k], 4)}</td><td class="n">${f(d.ours[k], 4)}</td></tr>`).join('')}
+    <tr><td><b>합계</b></td><td class="n">${f(d.base.total, 4)}</td><td class="n">${f(d.ours.total, 4)}</td></tr></tbody></table></div>
+    <p class="why2"><b>기준:</b> ${esc(d.base_cfg.basis)}</p><p class="why2"><b>제안:</b> ${esc(d.ours_cfg.basis)}</p>
+    <div class="note">${esc(d.caveat)}</div>`;
+}
+
+function detailRate(it, d, form) {
+  const mx = Math.max(d.base.value_bps, d.ours.value_bps, it.target * 1e6) * 1.1;
+  const row = (o, c) => `<tr><td><b>${esc(o.name)}</b></td><td class="n">${f(o.se)} b/s/Hz × ${f(o.bw_hz / 1e6, 0)} MHz ÷ ${o.users}명</td><td class="n"><b>${si(o.value_bps)}</b></td>
+    <td style="width:30%"><span class="bar ${c}" style="width:${100 * o.value_bps / mx}%"></span></td></tr><tr><td colspan="4" class="why2" style="padding-top:0">${esc(o.basis)}</td></tr>`;
+  const dv = d.delivered;
+  return `<h3>산식</h3>${form}
+    <div class="tw"><table><thead><tr><th></th><th class="n">계산</th><th class="n">사용자 속도</th><th></th></tr></thead><tbody>${row(d.base, '')}${row(d.ours, it.ok ? 'g' : 'r')}</tbody></table></div>
+    <p class="why2">목표 ${it.target} Mb/s 는 <b>피크값</b> 기준이다. 하향 스펙트럼 효율이 올라가면 이 값도 같이 오른다.</p>
+    ${dv ? `<h3>참고: 캐시를 반영한 체감 평균</h3><div class="f">백홀 ${si(dv.backhaul_bps)} 가정<br>
+    히트율 ${f(dv.hit.value_pct)}% → <b>${si(dv.ours_bps)}</b><br>히트율 ${f(dv.hit.baseline_pct)}% (${esc(dv.hit.baseline_name || '비교군')}) → ${si(dv.base_bps)} (차이 ${f(100 * (dv.ours_bps / dv.base_bps - 1), 1)}%)</div>
+    <p class="why2">체감 평균은 백홀이 섞이는 값이라 최대 Data Rate 보고값에는 들어가지 않는다. 캐시 히트율 슬라이더로 바꿔 볼 수 있다.</p>` : ''}`;
+}
+
+function detailEE(it, d, form) {
+  const b = d.baseline, o = d.ours;
+  const mxP = Math.max(b.p_total_w, o.p_total_w) * 1.05;
+  const seg = (parts, tot) => `<div class="stack" style="width:${100 * tot / mxP}%">${parts.map(([v, c, n]) => `<i style="width:${100 * v / tot}%;background:${c}" title="${n} ${f(v, 1)} W"></i>`).join('')}</div>`;
+  // 곡선
+  const cv = cur.energy_curve, W = 560, H = 230, L = 40, R = 12, T = 12, B = 28;
+  const ymax = Math.max(it.target * 1.4, ...cv.map(p => p.ratio)) * 1.02;
+  const xs = v => L + (v - 0.1) / 0.9 * (W - L - R), ys = v => T + (1 - v / ymax) * (H - T - B);
+  const path = cv.map((p, i) => (i ? 'L' : 'M') + xs(p.load).toFixed(1) + ' ' + ys(p.ratio).toFixed(1)).join('');
+  let g = '';
+  for (let y = 0; y <= ymax; y += 10) g += `<line x1="${L}" x2="${W - R}" y1="${ys(y)}" y2="${ys(y)}" stroke="var(--line)"/><text x="${L - 5}" y="${ys(y) + 4}" font-size="11" fill="var(--ink3)" text-anchor="end">${y}</text>`;
+  for (let x = 0.2; x <= 1.001; x += 0.2) g += `<text x="${xs(x)}" y="${H - 8}" font-size="11" fill="var(--ink3)" text-anchor="middle">${x.toFixed(1)}</text>`;
+  g += `<line x1="${L}" x2="${W - R}" y1="${ys(it.target)}" y2="${ys(it.target)}" stroke="var(--red)" stroke-dasharray="5 4"/><text x="${W - R}" y="${ys(it.target) - 4}" font-size="12" fill="var(--red)" text-anchor="end">목표 ${it.target}배</text>`;
+  g += `<path d="${path}" fill="none" stroke="var(--blue)" stroke-width="2.5"/>`;
+  if (d.crossover_load != null) g += `<line x1="${xs(d.crossover_load)}" x2="${xs(d.crossover_load)}" y1="${T}" y2="${H - B}" stroke="var(--amber)" stroke-dasharray="3 3"/><text x="${xs(d.crossover_load) - 4}" y="${T + 12}" font-size="12" fill="var(--amber)" text-anchor="end">경계 ${f(d.crossover_load, 3)}</text>`;
+  g += `<circle cx="${xs(o.load)}" cy="${ys(it.value)}" r="6" fill="${it.ok ? 'var(--green)' : 'var(--red)'}"/><text x="${xs(o.load)}" y="${ys(it.value) - 10}" font-size="12" fill="var(--ink)" text-anchor="middle">지금 ${f(o.load, 2)} → ${f(it.value, 1)}배</text>`;
+  g += `<text x="${W - R}" y="${H - 1}" font-size="11" fill="var(--ink3)" text-anchor="end">SBS 평균 부하율</text>`;
+  return `<h3>산식</h3>${form}<p class="why2">${esc(d.basis)}</p>
+    <div class="cols2"><div><h3>전력 구성 (W)</h3>
+      <p class="why2">기준 — MBS 단독 · 처리량 ${si(b.tp_bps)} · <b>${f(b.p_total_w, 1)} W</b> · EE ${f(b.ee_bps_w / 1e6, 4)} Mb/s/W</p>
+      ${seg([[b.p_rf_w, 'var(--blue)', 'RF'], [b.p_backhaul_w, 'var(--amber)', '백홀']], b.p_total_w)}
+      <p class="why2">제안 — MBS 절전 + SBS 밀집 · 처리량 ${si(o.tp_bps)} · <b>${f(o.p_total_w, 1)} W</b> · EE ${f(o.ee_bps_w / 1e6, 4)} Mb/s/W</p>
+      ${seg([[o.p_mbs_w, 'var(--blue)', 'MBS'], [o.p_sbs_w, 'var(--green)', 'SBS'], [o.p_backhaul_w, 'var(--amber)', '백홀']], o.p_total_w)}
+      <div class="legend"><span style="--c:var(--blue)">RF / MBS</span><span style="--c:var(--green)">SBS</span><span style="--c:var(--amber)">백홀</span></div>
+      <div class="f">개선 배수 = ${f(o.ee_bps_w / 1e6, 4)} / ${f(b.ee_bps_w / 1e6, 4)} = <b>${f(it.value)}배</b></div>
+      <p class="why2">${esc(d.note)} (스펙트럼 효율 기여분 ×${f(d.se_gain)})</p></div>
+    <div><h3>SBS 부하율에 따른 개선 배수</h3><svg viewBox="0 0 ${W} ${H}" width="100%">${g}</svg>
+      <div class="note"><b>5개 항목 중 이 지표가 가정에 가장 민감하다.</b> 목표를 만족하는 최소 부하율은 <b>${d.crossover_load == null ? '없음' : f(d.crossover_load, 3)}</b> 이다.</div></div></div>`;
+}
+
+
+/* ===================== 시뮬레이션 결과 입력 → 평가 ===================== */
+const CASE_NAME = {baseline: '기준', proposed: '제안'};
+let SF = null, rows = [], simRes = null, simSel = 'se_dl', simTimer = null, simErr = null;
+const SORDER = ['se_dl', 'se_ul', 'ee', 'rate', 'lat'];
+
+$('#tabs').onclick = e => {
+  const t = e.target.dataset && e.target.dataset.t; if (!t) return;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $('#p-sim').style.display = t === 'sim' ? '' : 'none';
+  $('#p-assume').style.display = t === 'assume' ? '' : 'none';
+  $('#reset').style.display = t === 'assume' ? '' : 'none';
+};
+
+function toCsv() { return 'item,case,param,value\n' + rows.map(r => `${r.item},${r.case},${r.param},${r.value}`).join('\n') + '\n'; }
+function schedSim(ms = 250) { clearTimeout(simTimer); simTimer = setTimeout(runSim, ms); }
+async function runSim() {
+  const valid = rows.filter(r => r.value !== '' && !isNaN(+r.value));
+  if (!valid.length) { simRes = null; simErr = null; renderSim(); return; }
+  try { simRes = await api('/api/simin', {text: 'item,case,param,value\n' + valid.map(r => `${r.item},${r.case},${r.param},${r.value}`).join('\n')}); simErr = null; }
+  catch (e) { simRes = null; simErr = e.message; }
+  renderSim();
+}
+function itemParams(iid) { const set = []; SF.routes[iid].forEach(rt => rt.forEach(p => { if (!set.includes(p)) set.push(p); })); if (iid === 'ee') set.push('ee_ratio'); return set; }
+
+function buildRows() {
+  $('#simrows').innerHTML = SORDER.map(iid => {
+    const it = SF.items[iid], rs = rows.map((r, i) => [r, i]).filter(([r]) => r.item === iid);
+    const params = itemParams(iid);
+    return `<div class="sgrp"><div class="h">${esc(it.label)} <small>목표 ${it.target} ${esc(it.unit)} · 기준 ${it.ref}</small></div>
+      <div class="need">값을 주는 방법: ${SF.routes[iid].map(r => r.map(p => SF.params[p].label).join(' + ')).join(' / ')}${iid === 'ee' ? ' (기준·제안 둘 다), 또는 제안의 개선 배수' : ''}</div>
+      <table><tbody>${rs.map(([r, i]) => `<tr><td><select data-i="${i}" data-f="case">${SF.cases.map(c => `<option value="${c}" ${r.case === c ? 'selected' : ''}>${CASE_NAME[c]}</option>`).join('')}</select></td>
+        <td><select data-i="${i}" data-f="param">${params.map(p => `<option value="${p}" ${r.param === p ? 'selected' : ''}>${esc(SF.params[p].label)} (${esc(SF.params[p].unit)})</option>`).join('')}</select></td>
+        <td><input type="number" step="any" data-i="${i}" data-f="value" value="${r.value}"></td><td><button class="x" data-del="${i}" title="행 지우기">×</button></td></tr>`).join('')}</tbody></table>
+      <button class="add" data-add="${iid}">+ 행 추가</button></div>`;
+  }).join('');
+  document.querySelectorAll('#simrows [data-f]').forEach(el => el.onchange = el.oninput = () => {
+    const r = rows[+el.dataset.i]; r[el.dataset.f] = el.dataset.f === 'value' ? el.value : el.value;
+    if (el.dataset.f !== 'value') buildRows(); schedSim();
+  });
+  document.querySelectorAll('#simrows [data-del]').forEach(b => b.onclick = () => { rows.splice(+b.dataset.del, 1); buildRows(); schedSim(0); });
+  document.querySelectorAll('#simrows [data-add]').forEach(b => b.onclick = () => { const iid = b.dataset.add; rows.push({item: iid, case: 'proposed', param: itemParams(iid)[0], value: ''}); buildRows(); });
+  $('#simcount').textContent = rows.length ? rows.length + '행' : '비어 있음';
+}
+
+async function loadText(text) {
+  try { const r = await api('/api/simin/rows', {text}); rows = r.rows.map(x => ({...x})); buildRows(); await runSim(); if (r.warnings.length) toast(r.warnings[0]); }
+  catch (e) { simErr = e.message; simRes = null; renderSim(); }
+}
+$('#sSample').onclick = async () => { const r = await fetch('/api/simin/sample'); await loadText(await r.text()); };
+$('#sUp').onclick = () => $('#sFile').click();
+$('#sFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => loadText(rd.result); rd.readAsText(f); e.target.value = ''; };
+$('#sPaste').onclick = () => { $('#pastebox').style.display = ''; $('#pasteta').focus(); };
+$('#sCancel').onclick = () => { $('#pastebox').style.display = 'none'; };
+$('#sApply').onclick = async () => { await loadText($('#pasteta').value); $('#pastebox').style.display = 'none'; };
+$('#sClear').onclick = () => { rows = []; buildRows(); simRes = null; simErr = null; renderSim(); };
+$('#sDown').onclick = () => { const b = new Blob([toCsv()], {type: 'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'simulation_result.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+
+function renderSim() {
+  const el = $('#simsum');
+  if (simErr) { el.className = 'note'; el.style.borderColor = 'var(--red)'; el.innerHTML = '<b>읽지 못했다.</b> ' + esc(simErr); $('#simcards').innerHTML = ''; $('#simdetail').innerHTML = '<div class="why2">입력을 고치면 다시 계산한다.</div>'; $('#simtitle').textContent = '상세'; return; }
+  el.style.borderColor = '';
+  if (!simRes) { el.className = 'note blue'; el.innerHTML = '시뮬레이션 결과를 넣으면 여기에 판정이 나온다. <b>예시 불러오기</b>를 누르면 입력 형식과 함께 바로 확인할 수 있다.'; $('#simcards').innerHTML = ''; $('#simdetail').innerHTML = '<div class="why2">왼쪽에 결과를 넣으면 산식에 숫자를 넣은 과정이 나온다.</div>'; return; }
+  const r = simRes;
+  el.className = 'note blue';
+  el.innerHTML = `입력된 <b>${r.evaluated}개 항목 중 ${r.passed}개가 목표를 충족</b>한다.` + (r.evaluated < r.total ? ` 나머지 ${r.total - r.evaluated}개는 입력이 없거나 부족해서 계산하지 못했다.` : '') +
+    (r.warnings.length ? '<br>' + r.warnings.map(esc).join('<br>') : '');
+  $('#simcards').innerHTML = SORDER.map(id => {
+    const it = r.items.find(x => x.id === id);
+    const dec = id === 'lat' ? 4 : id === 'rate' ? 1 : 2;
+    if (it.status !== 'ok') return `<div class="it ${it.status === 'incomplete' ? 'inc' : 'na'} ${simSel === id ? 'on' : ''}" data-i="${id}"><div class="l">${esc(it.label)}</div><div class="v" style="font-size:18px">${it.status === 'incomplete' ? '입력 부족' : '입력 없음'}</div><div class="s">목표 ${it.target}</div></div>`;
+    const mx = Math.max(it.target, it.ref, it.value) * 1.15, pos = v => Math.min(100, 100 * v / mx);
+    return `<div class="it ${it.ok ? 'ok' : 'no'} ${simSel === id ? 'on' : ''}" data-i="${id}"><div class="l">${esc(it.label)}</div>
+      <div><span class="v">${f(it.value, dec)}</span><span class="u">${esc(it.unit)}</span></div>
+      <div class="gauge"><i style="width:${pos(it.value)}%"></i><em style="left:${pos(it.ref)}%"></em><b style="left:${pos(it.target)}%"></b></div>
+      <div class="s"><span class="${it.ok ? 'ok' : 'no'}">${it.ok ? '충족' : '미달'}</span> (${it.margin >= 0 ? '+' : ''}${it.margin.toFixed(1)}%) · 목표 ${it.target}</div></div>`;
+  }).join('');
+  document.querySelectorAll('#simcards .it').forEach(e => e.onclick = () => { simSel = e.dataset.i; renderSim(); });
+  const it = r.items.find(x => x.id === simSel);
+  $('#simtitle').innerHTML = esc(it.label) + ` <small>목표 ${it.target} ${esc(it.unit)} · 기준 ${it.ref} (${esc(it.ref_src)})</small>`;
+  if (it.status !== 'ok') {
+    $('#simdetail').innerHTML = `<div class="note">${it.status === 'incomplete' ? '넣은 값만으로는 계산할 수 없다.' : '이 항목의 입력이 없다.'} 다음 중 하나가 필요하다:<ul>${it.need.map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>`;
+    return;
+  }
+  const dec = simSel === 'lat' ? 4 : 2;
+  $('#simdetail').innerHTML = `<div class="verdict" style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap"><span class="v" style="font-size:34px;font-family:var(--mono);font-weight:700;color:var(--head)">${f(it.value, dec)}</span><span>${esc(it.unit)}</span><span class="${it.ok ? 'ok' : 'no'}" style="font-size:18px">${it.ok ? '충족' : '미달'} ${it.margin >= 0 ? '+' : ''}${it.margin.toFixed(1)}%</span></div>
+    <h3>산식을 넣은 과정</h3>${it.lines.map(l => `<div class="line ${l.startsWith('기준') ? 'b' : ''}">${esc(l)}</div>`).join('')}
+    ${it.baseline != null ? `<p class="why2">기준 ${f(it.baseline, dec)} → 제안 ${f(it.value, dec)} ${esc(it.unit)}${it.gain != null ? ' (' + f(it.gain, 2) + '배)' : ''}. 기준 수준 ${it.ref} ${esc(it.unit)} (${esc(it.ref_src)}).</p>` : ''}
+    <div class="note">이 값은 <b>입력한 시뮬레이션 값에 산식을 적용한 결과</b>다. 장비에서 측정한 값이 아니다.</div>`;
+}
+
+(async function initSim() {
+  SF = await api('/api/simin/format');
+  buildRows(); renderSim();
+})().catch(e => toast(e.message));
+
+init().catch(e => { document.body.insertAdjacentHTML('beforeend', '<div class="note">불러오지 못했다: ' + esc(e.message) + '</div>'); });
+</script>
+</body>
+</html>
